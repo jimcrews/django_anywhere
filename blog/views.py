@@ -1,8 +1,9 @@
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from .models import Post
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.views.generic import ListView
+from .forms import EmailPostForm
 
 
 class PostListView(ListView):
@@ -44,3 +45,23 @@ def post_detail(request, year, month, day, slug):
         raise Http404("No Post Found")
 
     return render(request, 'blog/post/detail.html', {'post': post})
+
+
+def post_share(request, post_id):
+    post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED)
+    sent = False
+    if request.method == 'POST':
+        # form was submitted
+        form = EmailPostForm(request.POST)
+        if form.is_valid():
+            # form fields passed validation
+            cd = form.cleaned_data  # a dictionary of form fields and their values
+            # send email
+            post_url = request.build_absolute_uri(post.get_absolute_url())
+            print(f"{cd['name']} recommends you read {post.title}")
+            print(f"Read {post.title} at {post_url}\n\n {cd['name']}\'s comments: {cd['comments']}")
+            sent = True
+    else:
+        form = EmailPostForm()
+
+    return render(request, 'blog/post/share.html', {'post': post, 'form': form, 'sent': sent})
